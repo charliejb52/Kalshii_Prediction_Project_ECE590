@@ -17,10 +17,12 @@ Our original proposal asked whether a transformer could distinguish "genuine" pr
 The model learns to update a probability estimate day-by-day from headlines alone, mirroring what Kalshi traders do from all available information. Kalshi's price at each timestep is the ground truth label — no interpretation, no benchmark comparison needed.
 
 This answers two things simultaneously:
+
 1. **Is our model predictive?** Does text alone contain enough signal to track market-implied probabilities?
 2. **Is Kalshi a good baseline?** If the model converges to Kalshi, it validates Kalshi as a text-predictable aggregator of public information.
 
 **Either result is a real finding:**
+
 - If yes → human belief updating about macro events is largely text-driven and a transformer captures that process
 - If no → Kalshi incorporates something fundamentally beyond text: crowd dynamics, trading behavior, or information that never makes headlines
 
@@ -29,9 +31,11 @@ This answers two things simultaneously:
 ## Data Pipeline — Person 1
 
 ### Kalshi Price Histories
+
 Pull daily prices for macro contracts via the Kalshi API.
 
 Target contract types:
+
 - CPI threshold
 - Fed rate decision
 - Unemployment
@@ -40,19 +44,25 @@ Target contract types:
 Goal: 50–100 contracts with full lifetime price histories. Each contract has a start date, resolution date, and daily closing price.
 
 ### Headline Collection
-For each contract, query NewsAPI daily with contract-specific keywords (e.g. `"CPI inflation"` for CPI contracts). Collect all headlines for each day from contract open to resolution. Match headlines to Kalshi prices by date.
+
+For each contract, query GDELT daily with contract-specific keywords (e.g. `"CPI inflation"` for CPI contracts) which all must be >= 5 chars long for GDELT. Collect all headlines for each day from contract open to resolution. Match headlines to Kalshi prices by date.
+
+Note:
+
+- Using GDELT gives us a 3 month before the current day window to collect headlines so we will have to either choose all contract that have a significant amount of data during that time or figure out a different way of getting headlines
+- NewsAPI has only a 1 month window, thats why I've opted to go with GDELT instead for now. There is a NewsAPI payed version that would allow us a much larger window but I don't think that should be necessary.
 
 ### Input Representation
 
 One vector per day per contract, constructed by concatenating three components:
 
-| Component | Description | Dimension |
-|-----------|-------------|-----------|
-| BERT embedding | Average of 768-dim BERT embeddings across all headlines that day | 768 |
-| FinBERT score | Scalar sentiment score averaged across headlines | 1 |
-| Price delta | Kalshi price change from previous day | 1 |
+| Component      | Description                                                        | Dimension |
+| -------------- | ------------------------------------------------------------------ | --------- |
+| BERT embedding | Average of 384-dim BERT embeddings across all headlines that day   | 384       |
+| FinBERT score  | Scalar sentiment scores averaged across headlines (pos, neg, nuet) | 3         |
+| Price delta    | Kalshi price change from previous day                              | 1         |
 
-**Final input per day:** ~770-dim vector  
+**Final input per day:** ~388-dim vector  
 **Full contract input:** sequence of `T` such vectors, where `T` = contract lifetime in days
 
 ---
@@ -62,6 +72,7 @@ One vector per day per contract, constructed by concatenating three components:
 ### Architecture
 
 Transformer encoder with:
+
 - **Causal masking** — at timestep `t` the model attends only over days `1...t`, never future headlines
 - **Learned temporal positional embeddings**
 - **Linear regression head** on top of encoder output, producing a scalar predicted Kalshi price at each timestep
@@ -74,25 +85,25 @@ Without causal masking the model can cheat by attending to future headlines. Wit
 
 ### Ablations — Model Components
 
-| Model | Input | Question Answered |
-|-------|-------|-------------------|
-| A | FinBERT score only, no sequence | Does sentiment alone predict Kalshi? |
-| B | BERT embeddings, single day, no sequence | Does semantic content alone predict Kalshi? |
-| C | BERT embeddings in transformer sequence | Does sequential context add anything over single-day semantics? |
-| D | BERT + FinBERT + price delta in transformer | Does adding price history improve replication? |
-| E | Same as C but LSTM | Does attention specifically matter or just sequential processing? |
-| F | Same as C but mean pooling | Does order matter at all? |
+| Model | Input                                       | Question Answered                                                 |
+| ----- | ------------------------------------------- | ----------------------------------------------------------------- |
+| A     | FinBERT score only, no sequence             | Does sentiment alone predict Kalshi?                              |
+| B     | BERT embeddings, single day, no sequence    | Does semantic content alone predict Kalshi?                       |
+| C     | BERT embeddings in transformer sequence     | Does sequential context add anything over single-day semantics?   |
+| D     | BERT + FinBERT + price delta in transformer | Does adding price history improve replication?                    |
+| E     | Same as C but LSTM                          | Does attention specifically matter or just sequential processing? |
+| F     | Same as C but mean pooling                  | Does order matter at all?                                         |
 
 > **The gap between B and C is the most important result in the project.** It directly justifies whether the transformer is load-bearing. The gap between C, E, and F tells you whether the attention mechanism specifically is doing useful work.
 
 ### Ablations — Sequence Length
 
-| Window | Question Answered |
-|--------|-------------------|
-| 3 days | Only recent headlines matter |
-| 7 days | One week of context |
-| 14 days | Two weeks |
-| Full contract | Entire lifetime |
+| Window        | Question Answered            |
+| ------------- | ---------------------------- |
+| 3 days        | Only recent headlines matter |
+| 7 days        | One week of context          |
+| 14 days       | Two weeks                    |
+| Full contract | Entire lifetime              |
 
 If 3 days matches full contract performance, long-range attention is not contributing. This is an important null result worth reporting.
 
@@ -141,11 +152,11 @@ On high-divergence days vs low-divergence days, extract and compare attention we
 
 ## Work Split
 
-| Person | Role | Responsibilities |
-|--------|------|-----------------|
+| Person   | Role          | Responsibilities                                                                                                |
+| -------- | ------------- | --------------------------------------------------------------------------------------------------------------- |
 | Person 1 | Data pipeline | Kalshi API, NewsAPI, BERT embeddings, FinBERT scores, price delta computation, train/val/test split by contract |
-| Person 2 | Modeling | Transformer architecture, causal masking, training loop, all ablation models A–F, sequence length sweep |
-| Person 3 | Analysis | Convergence curves, cross-contract comparison, failure analysis, attention heatmaps, report writing |
+| Person 2 | Modeling      | Transformer architecture, causal masking, training loop, all ablation models A–F, sequence length sweep         |
+| Person 3 | Analysis      | Convergence curves, cross-contract comparison, failure analysis, attention heatmaps, report writing             |
 
 ---
 
