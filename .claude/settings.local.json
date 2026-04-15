@@ -34,7 +34,11 @@
       "Bash(curl -s -X POST https://api.elections.kalshi.com/trade-api/v2/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@test.com\",\"password\":\"testpass\"}' -w '\\\\nHTTP:%{http_code}')",
       "Bash(curl -s https://api.elections.kalshi.com/trade-api/v2/markets/KXFEDDECISION-26MAR-H0/candlesticks -w '\\\\nHTTP:%{http_code}')",
       "Bash(curl -sv 'https://api.elections.kalshi.com/trade-api/v2/markets/KXFEDDECISION-26MAR-H0/candlesticks?period_interval=1440&start_ts=1727564400&end_ts=1742317200' -H 'Authorization: Bearer PLACEHOLDER_TOKEN')",
-      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST https://api.elections.kalshi.com/trade-api/v2/__TRACKED_VAR__ -H 'Content-Type: application/json' -d '{\"email\":\"x@x.com\",\"password\":\"x\"}')"
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST https://api.elections.kalshi.com/trade-api/v2/__TRACKED_VAR__ -H 'Content-Type: application/json' -d '{\"email\":\"x@x.com\",\"password\":\"x\"}')",
+      "Bash(.venv/bin/python -c \"import inspect; from gdeltdoc import Filters; print\\(inspect.signature\\(Filters.__init__\\)\\)\")",
+      "Bash(.venv/bin/python -c \"import gdeltdoc; import inspect; print\\(inspect.getsource\\(gdeltdoc.GdeltDoc.article_search\\)\\)\")",
+      "Bash(.venv/bin/python -c \"import gdeltdoc; import inspect; print\\(inspect.getsource\\(gdeltdoc.GdeltDoc._query\\)\\)\")",
+      "Bash(.venv/bin/python -c ':*)"
     ]
   }
 }
